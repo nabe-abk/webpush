@@ -12,6 +12,8 @@
   * Perl 5.8.1以降
   * [CryptX ライブラリ](http://search.cpan.org/dist/CryptX/)
 
+動作させる際は、__cache/ および data/ をwwwプロセスから書き込めるよう設定してください。
+
 # 著作権表示(Copyright)
 
  Copyright (C)2017 nabe@abk.
