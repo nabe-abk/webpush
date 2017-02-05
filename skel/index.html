@@ -101,7 +101,7 @@
 
 
 
-<@ifexec(@Error || @Debug || @Warning, begin)>
+<@ifexec(Develop && (@Error || @Debug || @Warning), begin)>
 <div class="main add-main">
 <p><strong>debug</strong></p>
 
