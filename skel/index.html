@@ -1,0 +1,171 @@
+<!DOCTYPE html> 
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="author" content="nabe">
+<meta name="robots" content="noindex,nofollow">
+<link rel="stylesheet" media="all" href="theme/satsuki2/satsuki2/satsuki2.css" id="theme">
+<script src="js/jquery-3.min.js"></script>
+<script src="js/main.js"></script>
+	<title>Web Push test</title>
+</head>
+<body>
+<div id="adiary-body">
+<!--ヘッダ部================================================================-->
+<div class="page-title">
+<h1>Web Push test</h1>
+</div>
+
+<div id="hatena-body">
+<!--内容====================================================================-->
+<div class="main">
+
+<!--main==========================================================-->
+<article>
+<h2>デモ</h2>
+<div class="body">
+	<form id="send-form">
+	<input type="hidden" name="action" value="send">
+	<input type="hidden" name="icon" value="<@Basepath>theme/icon.png">
+	通知タイトル <input type="text" name="title" value="" size="30"> <button>通知送信</button><br>
+	通知メッセージ <input type="text" name="body" value="" size="60"><br>
+	</form>
+	<p>デモにつき、WebPush登録は最新のもの（最後に登録された分）しか保存していません。</p>
+	<div>
+	<button type="button" id="reset">ログRESET</button>
+	<button type="button" id="push-regist">Web Push登録</button>
+	<button type="button" id="push-unregist">解除</button>
+	<button type="button" id="update-regist">スクリプト更新</button>
+	</div>
+
+	<textarea id="log" rows="25" style="width: 100%" readonly></textarea>
+</div>
+</article>
+
+</div><!-- end of main -->
+<!--サイドメニュー==========================================================-->
+<aside id="sidebar">
+<div id="side-a">
+
+<div class="hatena-module" id="side-information">
+<div class="hatena-moduletitle">Information</div>
+<div class="hatena-modulebody">
+<p>このデモは「<strong>HTML5なCMS adiary</strong>」へ Web Push を実装するためのテストとして作られました。</p>
+</div> <!-- hatena-modulebody -->
+</div> <!-- hatena-module -->
+
+<div class="hatena-module">
+<div class="hatena-moduletitle">adiaryの特徴</div>
+<div class="hatena-modulebody">
+<ul class="hatena-section">
+	<li>簡単で使いやすい</li>
+	<li>高機能なのに超高速動作</li>
+	<li>マウスで見た目を簡単カスタマイズ</li>
+	<li>何もしなくても<strong>スマホ完全対応</strong>。編集・管理もできる。</li>
+</ul>
+</div> <!-- hatena-modulebody -->
+</div> <!-- hatena-module -->
+
+
+
+<div class="hatena-module">
+<div class="hatena-moduletitle">システムの特徴</div>
+<div class="hatena-modulebody">
+<ul class="hatena-section">
+	<li>Perl製でどこでも動く！</li>
+	<li>マルチユーザーにも対応！</li>
+	<li>フォルダビューで快適な画像管理！</li>
+	<li>外部DB不要！（MySQLも可）</li>
+</ul>
+</div> <!-- hatena-modulebody -->
+</div> <!-- hatena-module -->
+
+
+
+
+<div class="hatena-module">
+<div class="hatena-moduletitle">外部リンク</div>
+<div class="hatena-modulebody">
+<ul class="hatena-section">
+<li><a href="http://adiary.org/">adiary公式サイト</a></li>
+<li><a href="https://twitter.com/nabe_abk">作者(Twitter)</a></li>
+<li><a href="https://github.com/nabe-abk/webpush">このデモのソース(Github)</a></li>
+</ul>
+</div> <!-- hatena-modulebody -->
+</div> <!-- hatena-module -->
+
+</div> <!-- End of side-a -->
+<div id="side-b"></div>
+</aside> <!-- End of sidebar -->
+
+
+
+<@ifexec(@Error || @Debug || @Warning, begin)>
+<div class="main add-main">
+<p><strong>debug</strong></p>
+
+<@ifexec(@Error, begin)>
+<div class="debug">
+Error : <strong><@error_load_and_clear("<br>\n")></strong><br>
+</div>
+<$end>
+<@ifexec(@Debug, begin)>
+<div class="debug">
+Debug : <strong><@join("<br>\n", Debug)></strong><br>
+</div>
+<$end>
+<@ifexec(@Warning, begin)>
+<div class="debug">
+Warning : <strong><@join("<br>\n", Warning)></strong><br>
+</div>
+<$end>
+<@ifexec(ENV_print, begin.env_print)>
+<div class="small debug mono">
+<@ifexec(1, begin)>
+$0 <@CMD_file><br>
+SCRIPT_NAME <@ENV.SCRIPT_NAME><br>
+REQUEST_URI <@ENV.REQUEST_URI><br>
+REDIRECT_URL <@ENV.REDIRECT_URL><br>
+REDIRECT_STATUS <@ENV.REDIRECT_STATUS><br>
+PATH_INFO <@ENV.PATH_INFO><br>
+PATH_INFO_orig <@ENV.PATH_INFO_orig><br>
+QUERY_STRING <@ENV.QUERY_STRING><br>
+QUERY_STRING_orig <@ENV.QUERY_STRING_orig><br>
+Server_url <@Server_url><br>
+<br>
+<$end>
+blogid <@v.blogid><br>
+Basepath <@Basepath><br>
+Request_base <@Request_base><br>
+<@if(WD, "WD <@WD><br>\n")>
+cgifile <@CGI_file><br>
+myself  <@Myself><br>
+myself2 <@Myself2><br>
+v.myself  <@v.myself><br>
+v.myself2 <@v.myself2><br>
+blog_admin <@v.blog_admin><br>
+allow_edit <@v.allow_edit><br>
+allow_com  <@v.allow_com><br>
+<br>
+<@dump_hash("%k=%v<br>\n", ENV)>
+</div>
+<$end.env_print>
+</div>
+<$end>
+
+
+
+<!--End of body ============================================================-->
+</div> <!-- End of #hatena-body -->
+<!--フッタ-->
+<footer id="footer">Valid HTML5/CSS</footer>
+</div> <!-- End of #adiary-body -->
+
+<div style="display:none">
+<span id="js-myself"><@Myself></span>
+<span id="spub"><@v.dat.spub></span>
+</div>
+
+</body>
+</html>

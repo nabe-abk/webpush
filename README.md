@@ -1,5 +1,11 @@
 [Japanese]
 
+# このプログラムの目的
+
+このプログラムは、高速＆高機能なCMS [adiary](https://adiary.org/) に Web Push を実装するためのテストとして作られました。
+
+[adiaryのサイトで動作デモ](https://adiary.org/webpush-test/)が公開されています。
+
 # 動作環境
 
   * Apache またはそれと互換性のあるWebサーバ
