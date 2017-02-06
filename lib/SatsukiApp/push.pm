@@ -180,21 +180,21 @@ sub send {
 	my $url  = $dat->{endpoint};
 
 	# ECC keys
-	my $spub = pack('H*', $dat->{spub});
-	my $sprv = pack('H*', $dat->{sprv});
+	my $mpub = pack('H*', $dat->{spub});
+	my $mprv = pack('H*', $dat->{sprv});
 	my $cpub = pack('H*', $dat->{cpub});
 	if (0) {	# message ECC generate
 		my $pk = Crypt::PK::ECC->new();
 		$pk->generate_key($ECC_NAME);
-		$spub = $pk->export_key_raw('public');
-		$sprv = $pk->export_key_raw('private');
+		$mpub = $pk->export_key_raw('public');
+		$mprv = $pk->export_key_raw('private');
 	}
 
 	my $secret;
 	{
 		my $pk1 = Crypt::PK::ECC->new();
 		my $pk2 = Crypt::PK::ECC->new();
-		$pk1->import_key_raw($sprv, $ECC_NAME);
+		$pk1->import_key_raw($mprv, $ECC_NAME);
 		$pk2->import_key_raw($cpub, $ECC_NAME);
 		$secret = $pk1->shared_secret($pk2);
 	}
@@ -208,7 +208,7 @@ sub send {
 
 	my $context = "P-256\x00"		# context is 140 byte
 		. pack('n', length($cpub)) . $cpub
-		. pack('n', length($spub)) . $spub;
+		. pack('n', length($mpub)) . $mpub;
 
 	my $prk    = $self->hkdf($auth, $secret, "Content-Encoding: auth\x00", 32);
 	my $aeskey = $self->hkdf($salt, $prk,    "Content-Encoding: aesgcm\x00$context", 16);
@@ -218,8 +218,8 @@ sub send {
 	&$log("nonce : ", $self->base64urlsafe( $nonce )  );
 
 	# JWT
-	my $vapid_pub = pack('H*', $dat->{spub});
-	my $vapid_key = pack('H*', $dat->{sprv});
+	my $spub = pack('H*', $dat->{spub});
+	my $sprv = pack('H*', $dat->{sprv});
 
 	my $jwt;
 	my $jwt_sig;
@@ -237,8 +237,9 @@ sub send {
 
 		$jwt = $self->base64urlsafe($jwt_h) . '.' . $self->base64urlsafe($jwt_c);
 		my $pk3 = Crypt::PK::ECC->new();
-		$pk3->import_key_raw($vapid_key, $ECC_NAME);
+		$pk3->import_key_raw($sprv, $ECC_NAME);
 		my $sig_der = $pk3->sign_message($jwt, 'SHA256');
+
 		$jwt_sig = $self->parse_ANS1_der( $sig_der );	# ASN.1 DER format to Binary
 
 		&$log("JWT context:   ", $jwt);
@@ -267,12 +268,12 @@ sub send {
 	my $http = $ROBJ->loadpm('Base::HTTP');
 	my $header = {
 		'Content-Encoding' => 'aesgcm',
-		'Crypto-Key' => 'keyid=p256dh;dh=' . $self->base64urlsafe($spub),
+		'Crypto-Key' => 'keyid=p256dh;dh=' . $self->base64urlsafe($mpub),
 		Encryption => 'keyid=p256dh;salt=' . $self->base64urlsafe($salt),
-		TTL => 3600
+		TTL => 86400
 	};
 	if ($jwt) {
-		$header->{'Crypto-Key'} .= ';p256ecdsa=' . $self->base64urlsafe($vapid_pub);
+		$header->{'Crypto-Key'} .= ';p256ecdsa=' . $self->base64urlsafe($spub);
 		$header->{Authorization} = 'WebPush ' . $jwt . '.' . $self->base64urlsafe($jwt_sig);
 		# (new)'WebPush' change from 'Bearer'(old)
 	}
