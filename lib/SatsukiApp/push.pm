@@ -183,6 +183,12 @@ sub send {
 	my $spub = pack('H*', $dat->{spub});
 	my $sprv = pack('H*', $dat->{sprv});
 	my $cpub = pack('H*', $dat->{cpub});
+	if (0) {	# message ECC generate
+		my $pk = Crypt::PK::ECC->new();
+		$pk->generate_key($ECC_NAME);
+		$spub = $pk->export_key_raw('public');
+		$sprv = $pk->export_key_raw('private');
+	}
 
 	my $secret;
 	{
@@ -212,8 +218,8 @@ sub send {
 	&$log("nonce : ", $self->base64urlsafe( $nonce )  );
 
 	# JWT
-	my $vapid_key = $sprv;
-	my $vapid_pub = $spub;
+	my $vapid_pub = pack('H*', $dat->{spub});
+	my $vapid_key = pack('H*', $dat->{sprv});
 
 	my $jwt;
 	my $jwt_sig;
@@ -261,12 +267,12 @@ sub send {
 	my $http = $ROBJ->loadpm('Base::HTTP');
 	my $header = {
 		'Content-Encoding' => 'aesgcm',
-		'Crypto-Key' => 'keyid=p256dh;dh=' . $self->base64urlsafe($vapid_pub),
+		'Crypto-Key' => 'keyid=p256dh;dh=' . $self->base64urlsafe($spub),
 		Encryption => 'keyid=p256dh;salt=' . $self->base64urlsafe($salt),
 		TTL => 3600
 	};
 	if ($jwt) {
-		$header->{'Crypto-Key'} .= ';p256ecdsa=' . $self->base64urlsafe($spub);
+		$header->{'Crypto-Key'} .= ';p256ecdsa=' . $self->base64urlsafe($vapid_pub);
 		$header->{Authorization} = 'WebPush ' . $jwt . '.' . $self->base64urlsafe($jwt_sig);
 		# (new)'WebPush' change from 'Bearer'(old)
 	}
