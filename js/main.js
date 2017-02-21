@@ -58,7 +58,7 @@ function regist_push(registration) {
 			registration.pushManager.subscribe({
 				userVisibleOnly: true,
 				applicationServerKey: spub
-			}).then(setSubscription, resetSubscription);
+			}).then(setSubscription);
 			return;
 		}
 		setSubscription(subscription);

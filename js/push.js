@@ -26,3 +26,4 @@ self.addEventListener('notificationclick', function(evt) {
 	})
   );
 }, false);
+

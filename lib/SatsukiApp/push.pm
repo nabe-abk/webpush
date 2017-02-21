@@ -102,7 +102,7 @@ sub output_html {
 		$self->{inframe} = $out;
 		$out = $ROBJ->call($frame_name);
 	}
-	$ROBJ->print_http_headers("text/html");
+	$ROBJ->print_http_headers();
 	$ROBJ->output_array($out);	# HTML出力
 }
 
