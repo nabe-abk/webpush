@@ -154,7 +154,7 @@ function b2hex(bin) {
 
 function base64(bin) {
 	var str = btoa(bin).replace(/=+$/, '');
-	return str.replace('+','-').replace('/','_');
+	return str.replace(/\+/g,'-').replace(/\//g,'_');
 }
 
 //////////////////////////////////////////////////////////////////////////////
