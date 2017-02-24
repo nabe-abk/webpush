@@ -451,6 +451,17 @@ sub write_file {
 	close($fh);
 }
 
+#------------------------------------------------------------------------------
+# ●スマホ判別
+#------------------------------------------------------------------------------
+sub sphone_checker {
+	my $ua = $ENV{HTTP_USER_AGENT};
+	if (0<index($ua,'iPhone') || 0<index($ua,'iPod') || 0<index($ua,'Android')
+	 || 0<index($ua,'BlackBerry') || 0<index($ua,'Windows Phone')) {
+		return 1;
+	}
+	return ;
+}
 
 
 1;

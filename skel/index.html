@@ -5,12 +5,16 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="author" content="nabe">
 <meta name="robots" content="noindex,nofollow">
+<link rel="stylesheet" media="all" href="theme/base.css" id="theme">
 <link rel="stylesheet" media="all" href="theme/satsuki2/satsuki2/satsuki2.css" id="theme">
+<@ifexec(1 || v.sphone_checker(), begin)>
+<link rel="stylesheet" media="all" href="theme/satsuki2/satsuki2/sphone.css">
+<$end>
 <script src="js/jquery-3.min.js"></script>
 <script src="js/main.js"></script>
 	<title>Web Push test</title>
 </head>
-<body>
+<body id="body">
 <div id="adiary-body">
 <!--ヘッダ部================================================================-->
 <div class="page-title">
@@ -28,8 +32,8 @@
 	<form id="send-form">
 	<input type="hidden" name="action" value="send">
 	<input type="hidden" name="icon" value="<@Basepath>theme/icon.png">
-	通知タイトル <input type="text" name="title" value="" size="30"> <button>通知送信</button><br>
-	通知メッセージ <input type="text" name="body" value="" size="60"><br>
+	通知タイトル <input type="text" name="title" value="" class="w200"> <button>通知送信</button><br>
+	通知メッセージ <input type="text" name="body" value="" class="w300"><br>
 	</form>
 	<p>デモにつき、WebPush登録は最新のもの（最後に登録された分）しか保存していません。</p>
 	<div>
@@ -39,7 +43,7 @@
 	<button type="button" id="update-regist">スクリプト更新</button>
 	</div>
 
-	<textarea id="log" rows="25" style="width: 100%" readonly></textarea>
+	<textarea id="log" rows="25" class="w100p" readonly></textarea>
 </div>
 </article>
 

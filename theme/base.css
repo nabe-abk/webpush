@@ -327,12 +327,6 @@ select option.special {
 	font-weight:		bold;
 	color:			#800;
 }
-/* readonly */
-input[readonly],
-select[readonly],
-textarea[readonly] {
-	background-color:	#ddd;
-}
 
 textarea {
 	display:		block;
