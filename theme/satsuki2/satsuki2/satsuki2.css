@@ -267,7 +267,6 @@ article h2 a.date {
 /* 記事本文 */
 article div.body {
 	background-color:	#fff;			/* $c=fixartbg */
-	font-size:		90%;
 	line-height:		140%;
 	margin:			0px;
 	padding:		0.5em 1em 0.5em 1.5em;

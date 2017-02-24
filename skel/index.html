@@ -8,6 +8,7 @@
 <link rel="stylesheet" media="all" href="theme/base.css" id="theme">
 <link rel="stylesheet" media="all" href="theme/satsuki2/satsuki2/satsuki2.css" id="theme">
 <@ifexec(1 || v.sphone_checker(), begin)>
+<meta name="viewport" id="viewport" content="width=device-width">
 <link rel="stylesheet" media="all" href="theme/satsuki2/satsuki2/sphone.css">
 <$end>
 <script src="js/jquery-3.min.js"></script>
@@ -21,12 +22,12 @@
 <h1>Web Push test</h1>
 </div>
 
-<div id="hatena-body">
+<div id="hatena-body"><div>
 <!--内容====================================================================-->
 <div class="main">
 
 <!--main==========================================================-->
-<article>
+<article class="article">
 <h2>デモ</h2>
 <div class="body">
 	<form id="send-form">
@@ -156,7 +157,7 @@ myself2 <@Myself2><br>
 
 
 <!--End of body ============================================================-->
-</div> <!-- End of #hatena-body -->
+</div></div> <!-- End of #hatena-body -->
 <!--フッタ-->
 <footer id="footer">Valid HTML5/CSS</footer>
 </div> <!-- End of #adiary-body -->
