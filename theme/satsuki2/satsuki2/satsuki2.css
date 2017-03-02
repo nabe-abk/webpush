@@ -51,14 +51,14 @@ h1 img, h1 a img {
 /* 記事部 */
 .main {
 	float:			right;
-	width:			calc(100% - 176px);
+	width:			calc(100% - 196px);
 	padding-right:		4px;
 }
 /* 左側にメニューを配置 */
 #sidebar
 {
 	float:			left;
-	width:			160px;
+	width:			180px;
 	margin:			0;
 	padding:		0;
 
@@ -66,7 +66,7 @@ h1 img, h1 a img {
 	line-height:		130%;
 }
 
-@media screen and (min-width: 940px) {
+@media screen and (min-width: 1125px) {
 	.main {
 		width:		calc(82% - 16px);
 	}

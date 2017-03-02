@@ -7,7 +7,7 @@
 <meta name="robots" content="noindex,nofollow">
 <link rel="stylesheet" media="all" href="theme/base.css" id="theme">
 <link rel="stylesheet" media="all" href="theme/satsuki2/satsuki2/satsuki2.css" id="theme">
-<@ifexec(1 || v.sphone_checker(), begin)>
+<@ifexec(v.sphone_checker(), begin)>
 <meta name="viewport" id="viewport" content="width=device-width">
 <link rel="stylesheet" media="all" href="theme/satsuki2/satsuki2/sphone.css">
 <$end>
@@ -79,7 +79,7 @@
 <div class="hatena-modulebody">
 <ul class="hatena-section">
 	<li>Perl製でどこでも動く！</li>
-	<li>マルチユーザーにも対応！</li>
+	<li>マルチユーザー対応！</li>
 	<li>フォルダビューで快適な画像管理！</li>
 	<li>外部DB不要！（MySQLも可）</li>
 </ul>
