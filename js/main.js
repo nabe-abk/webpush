@@ -48,8 +48,8 @@ function regist_push(registration) {
 	log('regist_push()');
 	registration.pushManager.getSubscription().then(function(subscription){
 		log('getSubscription()');
-		if ('supportedContentEncodings' in registration.pushManager) {
-			log('supportedContentEncodings', registration.pushManager.supportedContentEncodings.join(' '));
+		if ('supportedContentEncodings' in PushManager) {
+			log('supportedContentEncodings', PushManager.supportedContentEncodings.join(' '));
 		}
 
 		if (!subscription) {
