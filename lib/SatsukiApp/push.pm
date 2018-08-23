@@ -314,9 +314,8 @@ sub send {
 	$header->{TTL} = $self->{TTL} || 86400;
 	if ($jwt) {
 		$header->{'Crypto-Key'} .= ($header->{'Crypto-Key'} ? ';' : '') . 'p256ecdsa=' . $self->base64urlsafe($spub);
-		$header->{Authorization} = 'Bearer ' . $jwt . '.' . $self->base64urlsafe($jwt_sig);
+		$header->{Authorization} = 'Webpush ' . $jwt . '.' . $self->base64urlsafe($jwt_sig);
 		# (new)'WebPush' change from 'Bearer'(old)
-		# 'WebPush' not work on Microsoft Edge
 	}
 	&$log("");
 	foreach(sort(keys(%$header))) {
