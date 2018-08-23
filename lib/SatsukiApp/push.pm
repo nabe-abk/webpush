@@ -13,6 +13,7 @@ our $VERSION = '1.10';
 my $ECC_NAME  = 'prime256v1';
 my $AES128GCM = 1;
 my $VAPID     = 1;
+my $TTL       = 86400;
 ###############################################################################
 # ■基本処理
 ###############################################################################
@@ -235,19 +236,18 @@ sub send {
 
 		$msg	= $salt
 			. pack('N', 4096)	# network byte order (big eddian)
-			. "\x01$spub"
+			. pack('C', length($spub)) . "$spub"
 			. $msg;
 
 		# AES-GCM
 		my $ae = Crypt::AuthEnc::GCM->new('AES', $cek);
 		$ae->iv_add($nonce);
-		$ae->adata_add('');
 		$body = $ae->encrypt_add($msg . "\x02\x00")
-		      . $ae->encrypt_done();
+		      . $ae->encrypt_done();		# tag (16byte)
 
 		$header = {
 			'Content-Encoding' => 'aes128gcm',
-			TTL => 86400
+			TTL => $TTL
 		}
 
 	#-------------------------------------------------------------------
@@ -274,15 +274,14 @@ sub send {
 		# AES-GCM
 		my $ae = Crypt::AuthEnc::GCM->new('AES', $aeskey);
 		$ae->iv_add($nonce);
-		$ae->adata_add('');
 		$body = $ae->encrypt_add("\x00\x00" . $msg)
-		      . $ae->encrypt_done();
+		      . $ae->encrypt_done();			# tag
 
 		$header = {
 			'Content-Encoding' => 'aesgcm',
 			'Crypto-Key' => 'keyid=p256dh;dh=' . $self->base64urlsafe($spub),
 			Encryption => 'keyid=p256dh;salt=' . $self->base64urlsafe($salt),
-			TTL => 86400
+			TTL => $TTL
 		}
 	}
 
@@ -294,7 +293,7 @@ sub send {
 		my $jwt_c = '{';
 		if ($url =~ m|^(\w+://[^/]*)|) { $jwt_c .= "\"aud\":\"$1\"," }
 		$jwt_c .= "\"sub\":\"mailto:a\@b.c\",";
-		$jwt_c .= "\"exp\":" . (time()+86400) . ',';
+		$jwt_c .= "\"exp\":" . (time()+$TTL) . ',';
 		chop($jwt_c);
 		$jwt_c.='}';
 
