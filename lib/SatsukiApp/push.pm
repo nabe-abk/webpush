@@ -11,9 +11,6 @@ use Crypt::Digest::SHA256;
 #------------------------------------------------------------------------------
 our $VERSION = '1.10';
 my $ECC_NAME  = 'prime256v1';
-my $AES128GCM = 1;
-my $VAPID     = 1;
-my $TTL       = 86400;
 ###############################################################################
 # ■基本処理
 ###############################################################################
@@ -219,7 +216,7 @@ sub send {
 	my $jwt;
 	my $jwt_sig;
 
-	if ($AES128GCM) {
+	if ($self->{AES128GCM}) {
 		# for aes128gcm
 		my $ikm   = $self->hkdf($auth, $secret, "WebPush: info\x00$cpub$spub");
 		my $cek   = $self->hkdf($salt, $ikm,    "Content-Encoding: aes128gcm\x00", 16);
@@ -242,12 +239,11 @@ sub send {
 		# AES-GCM
 		my $ae = Crypt::AuthEnc::GCM->new('AES', $cek);
 		$ae->iv_add($nonce);
-		$body = $ae->encrypt_add($msg . "\x02\x00")
+ 		$body = $ae->encrypt_add($msg . "\x02\x00")
 		      . $ae->encrypt_done();		# tag (16byte)
 
 		$header = {
-			'Content-Encoding' => 'aes128gcm',
-			TTL => $TTL
+			'Content-Encoding' => 'aes128gcm'
 		}
 
 	#-------------------------------------------------------------------
@@ -280,20 +276,19 @@ sub send {
 		$header = {
 			'Content-Encoding' => 'aesgcm',
 			'Crypto-Key' => 'keyid=p256dh;dh=' . $self->base64urlsafe($spub),
-			Encryption => 'keyid=p256dh;salt=' . $self->base64urlsafe($salt),
-			TTL => $TTL
+			Encryption => 'keyid=p256dh;salt=' . $self->base64urlsafe($salt)
 		}
 	}
 
 	#-------------------------------------------------------------------
 	# VAPID
 	#-------------------------------------------------------------------
-	if ($VAPID) {
+	if ($self->{VAPID}) {
 		my $jwt_h = '{"typ":"JWT","alg":"ES256"}';
 		my $jwt_c = '{';
 		if ($url =~ m|^(\w+://[^/]*)|) { $jwt_c .= "\"aud\":\"$1\"," }
 		$jwt_c .= "\"sub\":\"mailto:a\@b.c\",";
-		$jwt_c .= "\"exp\":" . (time()+$TTL) . ',';
+		$jwt_c .= "\"exp\":" . (time() + $self->{TTL}) . ',';
 		chop($jwt_c);
 		$jwt_c.='}';
 
@@ -316,6 +311,7 @@ sub send {
 	#-------------------------------------------------------------------
 	my $http = $ROBJ->loadpm('Base::HTTP');
 
+	$header->{TTL} = $self->{TTL} || 86400;
 	if ($jwt) {
 		$header->{'Crypto-Key'} .= ($header->{'Crypto-Key'} ? ';' : '') . 'p256ecdsa=' . $self->base64urlsafe($spub);
 		$header->{Authorization} = 'Webpush ' . $jwt . '.' . $self->base64urlsafe($jwt_sig);
