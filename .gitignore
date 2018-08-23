@@ -6,8 +6,8 @@
 #--------------------------------------
 # root files
 #--------------------------------------
+/.htaccess
 !/.gitignore
-!/.htaccess
 !/push.cgi
 !/push.conf.cgi
 !/README.md
