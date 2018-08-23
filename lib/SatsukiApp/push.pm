@@ -1,7 +1,7 @@
 use strict;
 #------------------------------------------------------------------------------
 # デフォルトmain
-#							(C)2006-2009 nabe@abk
+#							(C)2017-2018 nabe@abk
 #------------------------------------------------------------------------------
 package SatsukiApp::push;
 use Crypt::PK::ECC;
@@ -9,9 +9,10 @@ use Crypt::AuthEnc::GCM;
 use Crypt::Mac::HMAC;
 use Crypt::Digest::SHA256;
 #------------------------------------------------------------------------------
-our $VERSION = '1.00';
-my $ECC_NAME = 'prime256v1';
-my $VAPID = 1;
+our $VERSION = '1.10';
+my $ECC_NAME  = 'prime256v1';
+my $AES128GCM = 1;
+my $VAPID     = 0;
 ###############################################################################
 # ■基本処理
 ###############################################################################
@@ -180,21 +181,15 @@ sub send {
 	my $url  = $dat->{endpoint};
 
 	# ECC keys
-	my $mpub = pack('H*', $dat->{spub});
-	my $mprv = pack('H*', $dat->{sprv});
+	my $spub = pack('H*', $dat->{spub});
+	my $sprv = pack('H*', $dat->{sprv});
 	my $cpub = pack('H*', $dat->{cpub});
-	if (0) {	# message ECC generate
-		my $pk = Crypt::PK::ECC->new();
-		$pk->generate_key($ECC_NAME);
-		$mpub = $pk->export_key_raw('public');
-		$mprv = $pk->export_key_raw('private');
-	}
 
 	my $secret;
 	{
 		my $pk1 = Crypt::PK::ECC->new();
 		my $pk2 = Crypt::PK::ECC->new();
-		$pk1->import_key_raw($mprv, $ECC_NAME);
+		$pk1->import_key_raw($sprv, $ECC_NAME);
 		$pk2->import_key_raw($cpub, $ECC_NAME);
 		$secret = $pk1->shared_secret($pk2);
 	}
@@ -206,83 +201,138 @@ sub send {
 	&$log("salt: ", $self->base64urlsafe( $salt ));
 	&$log("auth: ", $self->base64urlsafe( $auth ));
 
-	my $context = "P-256\x00"		# context is 140 byte
-		. pack('n', length($cpub)) . $cpub
-		. pack('n', length($mpub)) . $mpub;
-
-	my $prk    = $self->hkdf($auth, $secret, "Content-Encoding: auth\x00", 32);
-	my $aeskey = $self->hkdf($salt, $prk,    "Content-Encoding: aesgcm\x00$context", 16);
-	my $nonce  = $self->hkdf($salt, $prk,    "Content-Encoding: nonce\x00$context",  12);
-
-	&$log("aeskey: ", $self->base64urlsafe( $aeskey ) );
-	&$log("nonce : ", $self->base64urlsafe( $nonce )  );
-
-	# JWT
-	my $spub = pack('H*', $dat->{spub});
-	my $sprv = pack('H*', $dat->{sprv});
-
-	my $jwt;
-	my $jwt_sig;
-	if ($VAPID) {
-		my $jwt_h = '{"typ":"JWT","alg":"ES256"}';
-		my $jwt_c = '{';
-		if ($url =~ m|^(\w+://[^/]*)|) { $jwt_c .= "\"aud\":\"$1\"," }
-		$jwt_c .= "\"sub\":\"mailto:a\@b.c\",";
-		$jwt_c .= "\"exp\":" . (time()+86400) . ',';
-		chop($jwt_c);
-		$jwt_c.='}';
-
-		&$log("JWT Header: $jwt_h");
-		&$log("JWT claims: $jwt_c");
-
-		$jwt = $self->base64urlsafe($jwt_h) . '.' . $self->base64urlsafe($jwt_c);
-		my $pk3 = Crypt::PK::ECC->new();
-		$pk3->import_key_raw($sprv, $ECC_NAME);
-		my $sig_der = $pk3->sign_message($jwt, 'SHA256');
-
-		$jwt_sig = $self->parse_ANS1_der( $sig_der );	# ASN.1 DER format to Binary
-
-		&$log("JWT context:   ", $jwt);
-		&$log("JWT signature: ", $self->base64urlsafe($jwt_sig));
-	}
-
-	# push data
+	#-------------------------------------------------------------------
+	# Original message
+	#-------------------------------------------------------------------
 	my $h = $data;
 	$h->{title} ||= 'push test';
 	$h->{body}  ||= 'message body';
 	$h->{tag}   ||= 'push-' . time();
 	my $msg = $self->generate_json($h);
-	if (length($msg) > 4078) {
-		&$log("Message too long! (", length($msg), " bytes)");	# $msg is 4078 byte MAX
-		return \@buf;
+
+	#-------------------------------------------------------------------
+	# Encryption (aes128gcm)
+	#-------------------------------------------------------------------
+	my $header = {};
+	my $body;
+	my $jwt;
+	my $jwt_sig;
+
+	if ($AES128GCM) {
+		# for aes128gcm
+		my $ikm   = $self->hkdf($auth, $secret, "WebPush: info\x00$cpub$spub");
+		my $cek   = $self->hkdf($salt, $ikm,    "Content-Encoding: aes128gcm\x00", 16);
+		my $nonce = $self->hkdf($salt, $ikm,    "Content-Encoding: nonce\x00", 12);
+
+		&$log("ikm   : ", $self->base64urlsafe( $ikm   ) );
+		&$log("cek   : ", $self->base64urlsafe( $cek   ) );
+		&$log("nonce : ", $self->base64urlsafe( $nonce ) );
+
+		if (length($msg) > 3992) {
+			&$log("Message too long! (", length($msg), " bytes)");
+			return \@buf;
+		}
+
+		$msg	= $salt
+			. pack('N', 4096)	# network byte order (big eddian)
+			. "\x01$spub"
+			. $msg;
+
+		# AES-GCM
+		my $ae = Crypt::AuthEnc::GCM->new('AES', $cek);
+		$ae->iv_add($nonce);
+		$ae->adata_add('');
+		$body = $ae->encrypt_add($msg . "\x02\x00")
+		      . $ae->encrypt_done();
+
+		$header = {
+			'Content-Encoding' => 'aes128gcm',
+			TTL => 86400
+		}
+
+	#-------------------------------------------------------------------
+	# Encryption (aesgcm)
+	#-------------------------------------------------------------------
+	} else {
+		my $context = "P-256\x00"		# context is 140 byte
+			. pack('n', length($cpub)) . $cpub
+			. pack('n', length($spub)) . $spub;
+
+		my $prk    = $self->hkdf($auth, $secret, "Content-Encoding: auth\x00", 32);
+		my $aeskey = $self->hkdf($salt, $prk,    "Content-Encoding: aesgcm\x00$context", 16);
+		my $nonce  = $self->hkdf($salt, $prk,    "Content-Encoding: nonce\x00$context",  12);
+
+		&$log("aeskey: ", $self->base64urlsafe( $aeskey ) );
+		&$log("nonce : ", $self->base64urlsafe( $nonce )  );
+
+		# JWT
+
+		if ($VAPID) {
+			my $jwt_h = '{"typ":"JWT","alg":"ES256"}';
+			my $jwt_c = '{';
+			if ($url =~ m|^(\w+://[^/]*)|) { $jwt_c .= "\"aud\":\"$1\"," }
+			$jwt_c .= "\"sub\":\"mailto:a\@b.c\",";
+			$jwt_c .= "\"exp\":" . (time()+86400) . ',';
+			chop($jwt_c);
+			$jwt_c.='}';
+
+			&$log("JWT Header: $jwt_h");
+			&$log("JWT claims: $jwt_c");
+
+			$jwt = $self->base64urlsafe($jwt_h) . '.' . $self->base64urlsafe($jwt_c);
+			my $pk3 = Crypt::PK::ECC->new();
+			$pk3->import_key_raw($sprv, $ECC_NAME);
+			my $sig_der = $pk3->sign_message($jwt, 'SHA256');
+
+			$jwt_sig = $self->parse_ANS1_der( $sig_der );	# ASN.1 DER format to Binary
+
+			&$log("JWT context:   ", $jwt);
+			&$log("JWT signature: ", $self->base64urlsafe($jwt_sig));
+		}
+
+		# push data
+		if (length($msg) > 4078) {
+			&$log("Message too long! (", length($msg), " bytes)");	# $msg is 4078 byte MAX
+			return \@buf;
+		}
+
+		# AES-GCM
+		my $ae = Crypt::AuthEnc::GCM->new('AES', $aeskey);
+		$ae->iv_add($nonce);
+		$ae->adata_add('');
+		$body = $ae->encrypt_add("\x00\x00" . $msg)
+		      . $ae->encrypt_done();
+
+		$header = {
+			'Content-Encoding' => 'aesgcm',
+			'Crypto-Key' => 'keyid=p256dh;dh=' . $self->base64urlsafe($spub),
+			Encryption => 'keyid=p256dh;salt=' . $self->base64urlsafe($salt),
+			TTL => 86400
+		}
 	}
 
-	# AES-GCM
-	my $ae = Crypt::AuthEnc::GCM->new('AES', $aeskey);
-	$ae->iv_add($nonce);
-	$ae->adata_add('');
-	my $cipher = $ae->encrypt_add("\x00\x00" . $msg);
-	$cipher   .= $ae->encrypt_done();
-
+	#-------------------------------------------------------------------
 	# POST
+	#-------------------------------------------------------------------
 	my $http = $ROBJ->loadpm('Base::HTTP');
-	my $header = {
-		'Content-Encoding' => 'aesgcm',
-		'Crypto-Key' => 'keyid=p256dh;dh=' . $self->base64urlsafe($mpub),
-		Encryption => 'keyid=p256dh;salt=' . $self->base64urlsafe($salt),
-		TTL => 86400
-	};
+
 	if ($jwt) {
 		$header->{'Crypto-Key'} .= ';p256ecdsa=' . $self->base64urlsafe($spub);
-		$header->{Authorization} = 'WebPush ' . $jwt . '.' . $self->base64urlsafe($jwt_sig);
+		$header->{Authorization} = 'Bearer ' . $jwt . '.' . $self->base64urlsafe($jwt_sig);
 		# (new)'WebPush' change from 'Bearer'(old)
 	}
+	&$log("");
 	foreach(sort(keys(%$header))) {
-		&$log("$_: $header->{$_}");
+		&$log("\t$_: $header->{$_}");
 	}
-	my $r = $http->post($url, $header, $cipher);
+
+	my $r = $http->post($url, $header, $body);
+
 	&$log("POST: Status $http->{status}");
-	&$log(@$r);
+	if ($http->{status} != 200) {
+		&$log(map {"\t$_\n"} @{$http->{header}});
+	}
+        &$log(@$r);
 
 	return \@buf;
 }
@@ -297,9 +347,9 @@ sub hkdf {
 	my $info = shift;
 	my $len  = shift;
 
-	my $prk  = Crypt::Mac::HMAC::hmac('SHA256', $salt, $ikm);
-	my $info = Crypt::Mac::HMAC::hmac('SHA256', $prk,  "$info\x01");
-	return substr($info, 0, $len);
+	my $prk = Crypt::Mac::HMAC::hmac('SHA256', $salt, $ikm);
+	my $ret = Crypt::Mac::HMAC::hmac('SHA256', $prk,  "$info\x01");
+	return $len ? substr($ret, 0, $len) : $ret;
 }
 
 #------------------------------------------------------------------------------

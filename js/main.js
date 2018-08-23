@@ -48,6 +48,9 @@ function regist_push(registration) {
 	log('regist_push()');
 	registration.pushManager.getSubscription().then(function(subscription){
 		log('getSubscription()');
+		if ('supportedContentEncodings' in registration.pushManager) {
+			log('supportedContentEncodings', registration.pushManager.supportedContentEncodings.join(' '));
+		}
 
 		if (!subscription) {
 			var ary = $('#spub').text().match(/.{2}/g).map(function(x) {
