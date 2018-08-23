@@ -36,6 +36,11 @@ function init_push() {
 	Notification.requestPermission( function(permission) {
 		log('requestPermission', permission);
 		if (permission !== 'granted') return;
+
+		if ('supportedContentEncodings' in PushManager) {
+			log('supportedContentEncodings', PushManager.supportedContentEncodings.join(' '));
+		}
+
 		navigator.serviceWorker.register(serviceWorkerScript).then( function(registration) {
 			regist_push(registration);
 		}).catch(function(error) {
@@ -48,9 +53,6 @@ function regist_push(registration) {
 	log('regist_push()');
 	registration.pushManager.getSubscription().then(function(subscription){
 		log('getSubscription()');
-		if ('supportedContentEncodings' in PushManager) {
-			log('supportedContentEncodings', PushManager.supportedContentEncodings.join(' '));
-		}
 
 		if (!subscription) {
 			var ary = $('#spub').text().match(/.{2}/g).map(function(x) {
