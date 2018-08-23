@@ -12,7 +12,7 @@ use Crypt::Digest::SHA256;
 our $VERSION = '1.10';
 my $ECC_NAME  = 'prime256v1';
 my $AES128GCM = 1;
-my $VAPID     = 0;
+my $VAPID     = 1;
 ###############################################################################
 # ■基本処理
 ###############################################################################
@@ -265,31 +265,6 @@ sub send {
 		&$log("aeskey: ", $self->base64urlsafe( $aeskey ) );
 		&$log("nonce : ", $self->base64urlsafe( $nonce )  );
 
-		# JWT
-
-		if ($VAPID) {
-			my $jwt_h = '{"typ":"JWT","alg":"ES256"}';
-			my $jwt_c = '{';
-			if ($url =~ m|^(\w+://[^/]*)|) { $jwt_c .= "\"aud\":\"$1\"," }
-			$jwt_c .= "\"sub\":\"mailto:a\@b.c\",";
-			$jwt_c .= "\"exp\":" . (time()+86400) . ',';
-			chop($jwt_c);
-			$jwt_c.='}';
-
-			&$log("JWT Header: $jwt_h");
-			&$log("JWT claims: $jwt_c");
-
-			$jwt = $self->base64urlsafe($jwt_h) . '.' . $self->base64urlsafe($jwt_c);
-			my $pk3 = Crypt::PK::ECC->new();
-			$pk3->import_key_raw($sprv, $ECC_NAME);
-			my $sig_der = $pk3->sign_message($jwt, 'SHA256');
-
-			$jwt_sig = $self->parse_ANS1_der( $sig_der );	# ASN.1 DER format to Binary
-
-			&$log("JWT context:   ", $jwt);
-			&$log("JWT signature: ", $self->base64urlsafe($jwt_sig));
-		}
-
 		# push data
 		if (length($msg) > 4078) {
 			&$log("Message too long! (", length($msg), " bytes)");	# $msg is 4078 byte MAX
@@ -312,13 +287,39 @@ sub send {
 	}
 
 	#-------------------------------------------------------------------
+	# VAPID
+	#-------------------------------------------------------------------
+	if ($VAPID) {
+		my $jwt_h = '{"typ":"JWT","alg":"ES256"}';
+		my $jwt_c = '{';
+		if ($url =~ m|^(\w+://[^/]*)|) { $jwt_c .= "\"aud\":\"$1\"," }
+		$jwt_c .= "\"sub\":\"mailto:a\@b.c\",";
+		$jwt_c .= "\"exp\":" . (time()+86400) . ',';
+		chop($jwt_c);
+		$jwt_c.='}';
+
+		&$log("JWT Header: $jwt_h");
+		&$log("JWT claims: $jwt_c");
+
+		$jwt = $self->base64urlsafe($jwt_h) . '.' . $self->base64urlsafe($jwt_c);
+		my $pk3 = Crypt::PK::ECC->new();
+		$pk3->import_key_raw($sprv, $ECC_NAME);
+		my $sig_der = $pk3->sign_message($jwt, 'SHA256');
+
+		$jwt_sig = $self->parse_ANS1_der( $sig_der );	# ASN.1 DER format to Binary
+
+		&$log("JWT context:   ", $jwt);
+		&$log("JWT signature: ", $self->base64urlsafe($jwt_sig));
+	}
+
+	#-------------------------------------------------------------------
 	# POST
 	#-------------------------------------------------------------------
 	my $http = $ROBJ->loadpm('Base::HTTP');
 
 	if ($jwt) {
-		$header->{'Crypto-Key'} .= ';p256ecdsa=' . $self->base64urlsafe($spub);
-		$header->{Authorization} = 'Bearer ' . $jwt . '.' . $self->base64urlsafe($jwt_sig);
+		$header->{'Crypto-Key'} .= ($header->{'Crypto-Key'} ? ';' : '') . 'p256ecdsa=' . $self->base64urlsafe($spub);
+		$header->{Authorization} = 'Webpush ' . $jwt . '.' . $self->base64urlsafe($jwt_sig);
 		# (new)'WebPush' change from 'Bearer'(old)
 	}
 	&$log("");
