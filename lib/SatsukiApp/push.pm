@@ -183,25 +183,22 @@ sub send {
 	my $url  = $dat->{endpoint};
 
 	# ECC keys
-	my $spub = pack('H*', $dat->{spub});
-	my $sprv = pack('H*', $dat->{sprv});
+	my $mpub = pack('H*', $dat->{spub});
+	my $mprv = pack('H*', $dat->{sprv});
 	my $cpub = pack('H*', $dat->{cpub});
 
-	my $pk = Crypt::PK::ECC->new();
-	$pk->generate_key($ECC_NAME);
-	my $mpub = $pk->export_key_raw('public');
-	my $mprv = $pk->export_key_raw('private');
-	$spub = $mpub;
-	$sprv = $mprv;
-
-
-
+	if ($self->{SEPARATE_MKEY}) {		# onetime mpub(!=spub) mode
+		my $pk = Crypt::PK::ECC->new();
+		$pk->generate_key($ECC_NAME);
+		$mpub = $pk->export_key_raw('public');
+		$mprv = $pk->export_key_raw('private');
+	}
 
 	my $secret;
 	{
 		my $pk1 = Crypt::PK::ECC->new();
 		my $pk2 = Crypt::PK::ECC->new();
-		$pk1->import_key_raw($sprv, $ECC_NAME);
+		$pk1->import_key_raw($mprv, $ECC_NAME);
 		$pk2->import_key_raw($cpub, $ECC_NAME);
 		$secret = $pk1->shared_secret($pk2);
 	}
@@ -242,7 +239,7 @@ sub send {
 	#-------------------------------------------------------------------
 	if ($aes128) {
 		# for aes128gcm
-		my $ikm   = $self->hkdf($auth, $secret, "WebPush: info\x00$cpub$spub"    , 32);
+		my $ikm   = $self->hkdf($auth, $secret, "WebPush: info\x00$cpub$mpub"    , 32);
 		my $cek   = $self->hkdf($salt, $ikm,    "Content-Encoding: aes128gcm\x00", 16);
 		my $nonce = $self->hkdf($salt, $ikm,    "Content-Encoding: nonce\x00",     12);
 
@@ -256,7 +253,7 @@ sub send {
 		}
 
 		# body header / N is 4byte network byte order (big eddian)
-		$body  = $salt . pack('N', 4096) . pack('C', length($spub)) . $spub;
+		$body  = $salt . pack('N', 4096) . pack('C', length($mpub)) . $mpub;
 
 		# AES-GCM
 		my $ae = Crypt::AuthEnc::GCM->new('AES', $cek);
@@ -274,7 +271,7 @@ sub send {
 	} else {
 		my $context = "P-256\x00"		# context is 140 byte
 			. pack('n', length($cpub)) . $cpub
-			. pack('n', length($spub)) . $spub;
+			. pack('n', length($mpub)) . $mpub;
 
 		my $prk    = $self->hkdf($auth, $secret, "Content-Encoding: auth\x00", 32);
 		my $aeskey = $self->hkdf($salt, $prk,    "Content-Encoding: aesgcm\x00$context", 16);
@@ -297,7 +294,7 @@ sub send {
 
 		$header = {
 			'Content-Encoding' => 'aesgcm',
-			'Crypto-Key' => 'dh="'   . $self->base64urlsafe($spub) . '"',
+			'Crypto-Key' => 'dh="'   . $self->base64urlsafe($mpub) . '"',
 			'Encryption' => 'salt="' . $self->base64urlsafe($salt) . '"'
 		}
 	}
