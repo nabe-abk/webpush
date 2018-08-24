@@ -196,7 +196,8 @@ sub send {
 	my $mprv = pack('H*', $dat->{sprv});
 	my $cpub = pack('H*', $dat->{cpub});
 
-	if ($self->{SEPARATE_MKEY}) {		# onetime mpub(!=spub) mode
+	# "mpub=spub" don't work, if "Edge" and "aesgcm"
+	if (!$aes128 || $self->{SEPARATE_MKEY}) {	# onetime mpub(!=spub) mode
 		my $pk = Crypt::PK::ECC->new();
 		$pk->generate_key($ECC_NAME);
 		$mpub = $pk->export_key_raw('public');
@@ -295,8 +296,8 @@ sub send {
 
 		$header = {
 			'Content-Encoding' => 'aesgcm',
-			'Crypto-Key' => 'dh="'   . $self->base64urlsafe($mpub) . '"',
-			'Encryption' => 'salt="' . $self->base64urlsafe($salt) . '"'
+			'Crypto-Key' => 'dh='   . $self->base64urlsafe($mpub),
+			'Encryption' => 'salt=' . $self->base64urlsafe($salt)
 		}
 	}
 
