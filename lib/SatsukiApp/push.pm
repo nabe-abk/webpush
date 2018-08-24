@@ -333,7 +333,7 @@ sub send {
 
 	&$log("");
 	$header->{TTL} = $self->{TTL} || 86400;
-	$header->{'Content-Length'} = length($body);
+	# $header->{'Content-Length'} = length($body);
 	foreach(sort(keys(%$header))) {
 		&$log("\t$_: $header->{$_}");
 	}
