@@ -314,7 +314,7 @@ sub send {
 		#	sub => 'mailto:a@b.c',
 			exp => time() + $self->{TTL}
 		};
-		if ($url =~ m|^(\w+://[^:/]*)|) {
+		if ($url =~ m|^(\w+://[^/]*)|) {
 			$data->{aud} = $1;
 		}
 		$data = $self->generate_json($data);
