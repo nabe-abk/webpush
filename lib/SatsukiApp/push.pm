@@ -169,7 +169,7 @@ sub initalize {
 sub send {
 	my @buf;
 	my $self = shift;
-	my $data = shift || {};
+	my $form = shift || {};
 	my $log  = shift || sub { push(@buf, @_, "\n") };
 
 	my $ROBJ = $self->{ROBJ};
@@ -202,21 +202,33 @@ sub send {
 	#-------------------------------------------------------------------
 	# Original message
 	#-------------------------------------------------------------------
-	my $h = $data;
+	my $aes128 = $self->{AES128GCM};
+	{
+		my $enc = $form->{encoding};
+		delete $form->{encoding};
+		if ($enc ne '') {
+			$aes128 = ($enc =~ /^aes128/) ? 1 : 0;
+		}
+	}
+
+	my $h = $form;
 	$h->{title} ||= 'push test';
 	$h->{body}  ||= 'message body';
 	$h->{tag}   ||= 'push-' . time();
 	my $msg = $self->generate_json($h);
 
 	#-------------------------------------------------------------------
-	# Encryption (aes128gcm)
+	# Encryption
 	#-------------------------------------------------------------------
 	my $header = {};
 	my $body;
 	my $jwt;
 	my $jwt_sig;
 
-	if ($self->{AES128GCM}) {
+	#-------------------------------------------------------------------
+	# Encryption (aes128gcm)
+	#-------------------------------------------------------------------
+	if ($aes128) {
 		# for aes128gcm
 		my $ikm   = $self->hkdf($auth, $secret, "WebPush: info\x00$cpub$spub");
 		my $cek   = $self->hkdf($salt, $ikm,    "Content-Encoding: aes128gcm\x00", 16);
@@ -286,7 +298,7 @@ sub send {
 	if ($self->{VAPID}) {
 		my $jwt_h = '{"typ":"JWT","alg":"ES256"}';
 		my $jwt_c = '{';
-		if ($url =~ m|^(\w+://[^/]*)|) { $jwt_c .= "\"aud\":\"$1\"," }
+		if ($url =~ m|^(\w+://[^:/]*)|) { $jwt_c .= "\"aud\":\"$1\"," }
 		$jwt_c .= "\"sub\":\"mailto:a\@b.c\",";
 		$jwt_c .= "\"exp\":" . (time() + $self->{TTL}) . ',';
 		chop($jwt_c);
