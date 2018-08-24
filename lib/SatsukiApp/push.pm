@@ -332,8 +332,9 @@ sub send {
 	my $http = $ROBJ->loadpm('Base::HTTP');
 
 	&$log("");
-	$header->{TTL} = $self->{TTL} || 86400;
-	# $header->{'Content-Length'} = length($body);
+	$header->{TTL} = $self->{TTL} // 86400;
+	# $header->{'Content-Length'} = length($body);	# not needs
+
 	foreach(sort(keys(%$header))) {
 		&$log("\t$_: $header->{$_}");
 	}
