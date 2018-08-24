@@ -299,7 +299,8 @@ sub send {
 	if ($self->{VAPID}) {
 		my $info = '{"typ":"JWT", "alg":"ES256"}';
 		my $data = {
-			sub => 'mailto:a@b.c',
+			sub => $ROBJ->{Server_url} . $ROBJ->{Myself},
+		#	sub => 'mailto:a@b.c',
 			exp => time() + $self->{TTL}
 		};
 		if ($url =~ m|^(\w+://[^:/]*)|) {
