@@ -290,8 +290,8 @@ sub send {
 		# AES-GCM
 		my $ae = Crypt::AuthEnc::GCM->new('AES', $cek);
 		$ae->iv_add($nonce);
-		$body = $ae->encrypt_add("\x00\x00" . $msg)
-		      . $ae->encrypt_done();			# tag
+		$body = $ae->encrypt_add("\x00\x00" . $msg)	# \x00\x00 is padding size(BE),
+		      . $ae->encrypt_done();	# tag		# if 2 byte padding, "\x00\x02\x00\x00"
 
 		$header = {
 			'Content-Encoding' => 'aesgcm',
