@@ -242,7 +242,7 @@ sub init_path {
 	if (!exists $self->{Myself}) {
 		if ($rewrite) {
 			$self->{Myself}  = $self->{Myself2} = $basepath;
-		} elsif (substr($req_base, rindex($req_base, '/')+1) eq $cgi) {		# 通常のcgi
+		} elsif (substr($req_uri, rindex($req_uri, '/')+1) eq $cgi) {		# 通常のcgi
 			$self->{Myself}  = $basepath . $cgi;
 			$self->{Myself2} = $basepath . $cgi . '/';	# PATH_INFO用
 		} else {	# cgi が DirectoryIndex
