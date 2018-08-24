@@ -26,3 +26,4 @@
 <$v.VAPID     = true>
 <$v.TTL       = 86400>
 
+<$v.content_length = false>
