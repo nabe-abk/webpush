@@ -345,9 +345,7 @@ sub send {
 
 	&$log("");
 	$header->{TTL} = $self->{TTL} // 86400;
-	if ($self->{content_length}) {
-		$header->{'Content-Length'} = length($body);	# not needs
-	}
+
 	foreach(sort(keys(%$header))) {
 		&$log("\t$_: $header->{$_}");
 	}

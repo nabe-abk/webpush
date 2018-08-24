@@ -27,5 +27,4 @@
 <$v.TTL       = 86400>
 
 <$v.SEPARATE_MKEY  = false>
-<$v.content_length = false>
 
