@@ -287,8 +287,8 @@ sub send {
 
 		$header = {
 			'Content-Encoding' => 'aesgcm',
-			'Crypto-Key' => 'dh='   . $self->base64urlsafe($spub),
-			'Encryption' => 'salt=' . $self->base64urlsafe($salt)
+			'Crypto-Key' => 'dh="'   . $self->base64urlsafe($spub) . '"',
+			'Encryption' => 'salt="' . $self->base64urlsafe($salt) . '"'
 		}
 	}
 
