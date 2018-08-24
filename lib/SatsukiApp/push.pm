@@ -172,6 +172,10 @@ sub send {
 	my $form = shift || {};
 	my $log  = shift || sub { push(@buf, @_, "\n") };
 
+	&$log("---------------------------------------------------------------");
+	&$log(" webpush send");
+	&$log("---------------------------------------------------------------");
+
 	my $ROBJ = $self->{ROBJ};
 	my $dat  = $self->{dat};
 
@@ -222,8 +226,6 @@ sub send {
 	#-------------------------------------------------------------------
 	my $header = {};
 	my $body;
-	my $jwt;
-	my $jwt_sig;
 
 	#-------------------------------------------------------------------
 	# Encryption (aes128gcm)
@@ -232,7 +234,7 @@ sub send {
 		# for aes128gcm
 		my $ikm   = $self->hkdf($auth, $secret, "WebPush: info\x00$cpub$spub");
 		my $cek   = $self->hkdf($salt, $ikm,    "Content-Encoding: aes128gcm\x00", 16);
-		my $nonce = $self->hkdf($salt, $ikm,    "Content-Encoding: nonce\x00", 12);
+		my $nonce = $self->hkdf($salt, $ikm,    "Content-Encoding: nonce\x00",     12);
 
 		&$log("ikm   : ", $self->base64urlsafe( $ikm   ) );
 		&$log("cek   : ", $self->base64urlsafe( $cek   ) );
@@ -243,16 +245,14 @@ sub send {
 			return \@buf;
 		}
 
-		$msg	= $salt
-			. pack('N', 4096)	# network byte order (big eddian)
-			. pack('C', length($spub)) . "$spub"
-			. $msg;
+		# body header / N is 4byte network byte order (big eddian)
+		$body  = $salt . pack('N', 4096) . pack('C', length($spub)) . $spub;
 
 		# AES-GCM
 		my $ae = Crypt::AuthEnc::GCM->new('AES', $cek);
 		$ae->iv_add($nonce);
- 		$body = $ae->encrypt_add($msg . "\x02\x00")
-		      . $ae->encrypt_done();		# tag (16byte)
+ 		$body	.= $ae->encrypt_add($msg . "\x02\x00")
+		  	.  $ae->encrypt_done();		# tag (16byte)
 
 		$header = {
 			'Content-Encoding' => 'aes128gcm'
@@ -295,27 +295,35 @@ sub send {
 	#-------------------------------------------------------------------
 	# VAPID
 	#-------------------------------------------------------------------
+	my $vapid_jwt;
 	if ($self->{VAPID}) {
-		my $jwt_h = '{"typ":"JWT","alg":"ES256"}';
-		my $jwt_c = '{';
-		if ($url =~ m|^(\w+://[^:/]*)|) { $jwt_c .= "\"aud\":\"$1\"," }
-		$jwt_c .= "\"sub\":\"mailto:a\@b.c\",";
-		$jwt_c .= "\"exp\":" . (time() + $self->{TTL}) . ',';
-		chop($jwt_c);
-		$jwt_c.='}';
+		my $info = '{"typ":"JWT", "alg":"ES256"}';
+		my $data = {
+			sub => 'mailto:a@b.c',
+			exp => time() + $self->{TTL}
+		};
+		if ($url =~ m|^(\w+://[^:/]*)|) {
+			$data->{aud} = $1;
+		}
+		$data = $self->generate_json($data);
 
-		&$log("JWT Header: $jwt_h");
-		&$log("JWT claims: $jwt_c");
+		my $jwt = $self->base64urlsafe($info) . '.' . $self->base64urlsafe($data);
 
-		$jwt = $self->base64urlsafe($jwt_h) . '.' . $self->base64urlsafe($jwt_c);
 		my $pk3 = Crypt::PK::ECC->new();
 		$pk3->import_key_raw($sprv, $ECC_NAME);
-		my $sig_der = $pk3->sign_message($jwt, 'SHA256');
+		my $sign_der = $pk3->sign_message($jwt, 'SHA256');
+		my $sign     = $self->parse_ANS1_der( $sign_der );	# ASN.1 DER format to Binary
 
-		$jwt_sig = $self->parse_ANS1_der( $sig_der );	# ASN.1 DER format to Binary
+		&$log("");
+		&$log("JWT Info: $info");
+		&$log("JWT Data: $data");
+		&$log("JWT sign: ", $self->base64urlsafe($sign));
 
-		&$log("JWT context:   ", $jwt);
-		&$log("JWT signature: ", $self->base64urlsafe($jwt_sig));
+		$vapid_jwt  = $jwt . '.' . $self->base64urlsafe($sign);
+
+		$header->{'Crypto-Key'} .= ($header->{'Crypto-Key'} ? ';' : '') . 'p256ecdsa=' . $self->base64urlsafe($spub);
+		$header->{Authorization} = 'Webpush ' . $vapid_jwt;
+		# (new)'WebPush' change from 'Bearer'(old)
 	}
 
 	#-------------------------------------------------------------------
@@ -323,13 +331,9 @@ sub send {
 	#-------------------------------------------------------------------
 	my $http = $ROBJ->loadpm('Base::HTTP');
 
-	$header->{TTL} = $self->{TTL} || 86400;
-	if ($jwt) {
-		$header->{'Crypto-Key'} .= ($header->{'Crypto-Key'} ? ';' : '') . 'p256ecdsa=' . $self->base64urlsafe($spub);
-		$header->{Authorization} = 'Webpush ' . $jwt . '.' . $self->base64urlsafe($jwt_sig);
-		# (new)'WebPush' change from 'Bearer'(old)
-	}
 	&$log("");
+	$header->{TTL} = $self->{TTL} || 86400;
+	$header->{'Content-Length'} = length($body);
 	foreach(sort(keys(%$header))) {
 		&$log("\t$_: $header->{$_}");
 	}
