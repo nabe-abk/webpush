@@ -22,6 +22,7 @@ $('#reset').click(function(){
 $('#send-form').submit(send_push);
 
 function log(key, str) {
+	if ($log.text() == '' && key == '') return;
 	$log.text( $log.text() + key + (str != null ? ': ' + str : '') + "\n" );
 	$log.scrollTop( $log.prop('scrollHeight') );
 }
@@ -33,6 +34,7 @@ function init_push() {
 	if (!navigator.serviceWorker) return;
 
 	Notification.requestPermission( function(permission) {
+		log('');
 		log('requestPermission', permission);
 		if (permission !== 'granted') return;
 
