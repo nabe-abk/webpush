@@ -187,6 +187,16 @@ sub send {
 	my $sprv = pack('H*', $dat->{sprv});
 	my $cpub = pack('H*', $dat->{cpub});
 
+	my $pk = Crypt::PK::ECC->new();
+	$pk->generate_key($ECC_NAME);
+	my $mpub = $pk->export_key_raw('public');
+	my $mprv = $pk->export_key_raw('private');
+	$spub = $mpub;
+	$sprv = $mprv;
+
+
+
+
 	my $secret;
 	{
 		my $pk1 = Crypt::PK::ECC->new();
@@ -232,7 +242,7 @@ sub send {
 	#-------------------------------------------------------------------
 	if ($aes128) {
 		# for aes128gcm
-		my $ikm   = $self->hkdf($auth, $secret, "WebPush: info\x00$cpub$spub");
+		my $ikm   = $self->hkdf($auth, $secret, "WebPush: info\x00$cpub$spub"    , 32);
 		my $cek   = $self->hkdf($salt, $ikm,    "Content-Encoding: aes128gcm\x00", 16);
 		my $nonce = $self->hkdf($salt, $ikm,    "Content-Encoding: nonce\x00",     12);
 
@@ -296,6 +306,8 @@ sub send {
 	# VAPID
 	#-------------------------------------------------------------------
 	my $vapid_jwt;
+	my $spub = pack('H*', $dat->{spub});
+	my $sprv = pack('H*', $dat->{sprv});
 	if ($self->{VAPID}) {
 		my $info = '{"typ":"JWT", "alg":"ES256"}';
 		my $data = {
@@ -444,10 +456,8 @@ sub parse_ANS1_der {
 
 	my $x = ord(substr($der,   3,1));
 	my $y = ord(substr($der,$x+5,1));
-	my $r = substr($der,    4, $x);
-	my $s = substr($der, $x+6, $y);
-	$r =~ s/^\x00+//;
-	$s =~ s/^\x00+//;
+	my $r = substr(substr($der,    4, $x), -32);
+	my $s = substr(substr($der, $x+6, $y), -32);
 	return $r . $s;
 }
 
