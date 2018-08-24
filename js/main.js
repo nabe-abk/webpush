@@ -30,7 +30,6 @@ navigator.serviceWorker.ready.then(function(reg){
 	log('serviceWorker ready');
 });
 function init_push() {
-	log('');
 	if (!navigator.serviceWorker) return;
 
 	Notification.requestPermission( function(permission) {

@@ -172,8 +172,17 @@ sub send {
 	my $form = shift || {};
 	my $log  = shift || sub { push(@buf, @_, "\n") };
 
+	my $aes128 = $self->{AES128GCM};
+	{
+		my $enc = $form->{encoding};
+		delete $form->{encoding};
+		if ($enc ne '') {
+			$aes128 = ($enc =~ /^aes128/) ? 1 : 0;
+		}
+	}
+
 	&$log("---------------------------------------------------------------");
-	&$log(" webpush send");
+	&$log(" webpush send : " . ($aes128 ? 'aes128gcm' : 'aesgcm'));
 	&$log("---------------------------------------------------------------");
 
 	my $ROBJ = $self->{ROBJ};
@@ -207,21 +216,12 @@ sub send {
 	my $salt = $ROBJ->get_rand_string(16);
 	my $auth = pack('H*', $dat->{auth});
 
-	&$log("salt: ", $self->base64urlsafe( $salt ));
-	&$log("auth: ", $self->base64urlsafe( $auth ));
+	&$log("salt  : ", $self->base64urlsafe( $salt ));
+	&$log("auth  : ", $self->base64urlsafe( $auth ));
 
 	#-------------------------------------------------------------------
 	# Original message
 	#-------------------------------------------------------------------
-	my $aes128 = $self->{AES128GCM};
-	{
-		my $enc = $form->{encoding};
-		delete $form->{encoding};
-		if ($enc ne '') {
-			$aes128 = ($enc =~ /^aes128/) ? 1 : 0;
-		}
-	}
-
 	my $h = $form;
 	$h->{title} ||= 'push test';
 	$h->{body}  ||= 'message body';
@@ -239,11 +239,11 @@ sub send {
 	#-------------------------------------------------------------------
 	if ($aes128) {
 		# for aes128gcm
-		my $ikm   = $self->hkdf($auth, $secret, "WebPush: info\x00$cpub$mpub"    , 32);
-		my $cek   = $self->hkdf($salt, $ikm,    "Content-Encoding: aes128gcm\x00", 16);
-		my $nonce = $self->hkdf($salt, $ikm,    "Content-Encoding: nonce\x00",     12);
+		my $prk   = $self->hkdf($auth, $secret, "WebPush: info\x00$cpub$mpub"    , 32);
+		my $cek   = $self->hkdf($salt, $prk,    "Content-Encoding: aes128gcm\x00", 16);
+		my $nonce = $self->hkdf($salt, $prk,    "Content-Encoding: nonce\x00",     12);
 
-		&$log("ikm   : ", $self->base64urlsafe( $ikm   ) );
+		&$log("prk   : ", $self->base64urlsafe( $prk   ) );
 		&$log("cek   : ", $self->base64urlsafe( $cek   ) );
 		&$log("nonce : ", $self->base64urlsafe( $nonce ) );
 
@@ -273,12 +273,13 @@ sub send {
 			. pack('n', length($cpub)) . $cpub
 			. pack('n', length($mpub)) . $mpub;
 
-		my $prk    = $self->hkdf($auth, $secret, "Content-Encoding: auth\x00", 32);
-		my $aeskey = $self->hkdf($salt, $prk,    "Content-Encoding: aesgcm\x00$context", 16);
-		my $nonce  = $self->hkdf($salt, $prk,    "Content-Encoding: nonce\x00$context",  12);
+		my $prk   = $self->hkdf($auth, $secret, "Content-Encoding: auth\x00", 32);
+		my $cek   = $self->hkdf($salt, $prk,    "Content-Encoding: aesgcm\x00$context", 16);
+		my $nonce = $self->hkdf($salt, $prk,    "Content-Encoding: nonce\x00$context",  12);
 
-		&$log("aeskey: ", $self->base64urlsafe( $aeskey ) );
-		&$log("nonce : ", $self->base64urlsafe( $nonce )  );
+		&$log("prk   : ", $self->base64urlsafe( $prk   ) );
+		&$log("cek   : ", $self->base64urlsafe( $cek   ) );
+		&$log("nonce : ", $self->base64urlsafe( $nonce ) );
 
 		# push data
 		if (length($msg) > 4078) {
@@ -287,7 +288,7 @@ sub send {
 		}
 
 		# AES-GCM
-		my $ae = Crypt::AuthEnc::GCM->new('AES', $aeskey);
+		my $ae = Crypt::AuthEnc::GCM->new('AES', $cek);
 		$ae->iv_add($nonce);
 		$body = $ae->encrypt_add("\x00\x00" . $msg)
 		      . $ae->encrypt_done();			# tag
