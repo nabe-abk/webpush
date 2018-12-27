@@ -356,6 +356,7 @@ sub send {
 		&$log("\t$_: $header->{$_}");
 	}
 
+	&$log($url);
 	my $r = $http->post($url, $header, $body);
 
 	&$log("\nPOST: Status $http->{status}");
