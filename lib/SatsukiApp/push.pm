@@ -21,7 +21,10 @@ sub new {
 	my ($class, $ROBJ, $self) = @_;
 	if (ref($self) ne 'HASH') { $self={}; }
 	bless($self, $class);	# $self をこのクラスと関連付ける
+
 	$self->{ROBJ} = $ROBJ;
+	$self->{TTL}  = 86400;
+
 	return $self;
 }
 ###############################################################################
@@ -319,7 +322,7 @@ sub send {
 		my $data = {
 			sub => $ROBJ->{Server_url} . $ROBJ->{Myself},
 		#	sub => 'mailto:a@b.c',
-			exp => time() + $self->{TTL}
+			exp => time() + (86100 < $self->{TTL} ? 86100 : $self->{TTL})
 		};
 		if ($url =~ m|^(\w+://[^/]*)|) {
 			$data->{aud} = $1;
@@ -350,7 +353,7 @@ sub send {
 	my $http = $ROBJ->loadpm('Base::HTTP');
 
 	&$log("");
-	$header->{TTL} = $self->{TTL} // 86400;
+	$header->{TTL} = $self->{TTL};
 
 	foreach(sort(keys(%$header))) {
 		&$log("\t$_: $header->{$_}");
