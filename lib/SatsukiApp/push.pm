@@ -257,9 +257,6 @@ sub send {
 			return \@buf;
 		}
 
-		&$log("");
-		&$log("Message: $msg");
-
 		# body header / N is 4byte network byte order (big eddian)
 		$body  = $salt . pack('N', 4096) . pack('C', length($mpub)) . $mpub;
 
@@ -295,9 +292,6 @@ sub send {
 			return \@buf;
 		}
 
-		&$log("");
-		&$log("Message: $msg");
-
 		# AES-GCM
 		my $ae = Crypt::AuthEnc::GCM->new('AES', $cek);
 		$ae->iv_add($nonce);
@@ -310,6 +304,9 @@ sub send {
 			'Encryption' => 'salt=' . $self->base64urlsafe($salt)
 		}
 	}
+
+	&$log("");
+	&$log("Message: $msg");
 
 	#-------------------------------------------------------------------
 	# VAPID
