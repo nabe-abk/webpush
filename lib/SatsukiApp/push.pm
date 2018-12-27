@@ -204,6 +204,10 @@ sub send {
 		$mprv = $pk->export_key_raw('private');
 	}
 
+	&$log("mpub  : ", $self->base64urlsafe( $mpub ));
+	&$log("mprv  : ", $self->base64urlsafe( $mprv ));
+	&$log("cpub  : ", $self->base64urlsafe( $cpub ));
+
 	my $secret;
 	{
 		my $pk1 = Crypt::PK::ECC->new();
