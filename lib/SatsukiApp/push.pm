@@ -288,6 +288,9 @@ sub send {
 			return \@buf;
 		}
 
+		&$log("");
+		&$log("Message: $msg");
+
 		# AES-GCM
 		my $ae = Crypt::AuthEnc::GCM->new('AES', $cek);
 		$ae->iv_add($nonce);
@@ -335,7 +338,6 @@ sub send {
 
 		$header->{'Crypto-Key'} .= ($header->{'Crypto-Key'} ? ';' : '') . 'p256ecdsa=' . $self->base64urlsafe($spub);
 		$header->{Authorization} = 'Webpush ' . $vapid_jwt;
-		# (new)'WebPush' change from 'Bearer'(old)
 	}
 
 	#-------------------------------------------------------------------
@@ -352,10 +354,8 @@ sub send {
 
 	my $r = $http->post($url, $header, $body);
 
-	&$log("POST: Status $http->{status}");
-	if ($http->{status} != 200) {
-		&$log(map {"\t$_\n"} @{$http->{header}});
-	}
+	&$log("\nPOST: Status $http->{status}");
+	&$log(map {"\t$_\n"} @{$http->{header}});
         &$log(@$r);
 
 	return \@buf;
