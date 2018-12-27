@@ -218,11 +218,11 @@ sub send {
 	}
 	&$log("secret: ", $self->base64urlsafe( $secret ));
 
-	my $salt = $ROBJ->get_rand_string(16);
 	my $auth = pack('H*', $dat->{auth});
+	my $salt = $ROBJ->get_rand_string(16);
 
-	&$log("salt  : ", $self->base64urlsafe( $salt ));
 	&$log("auth  : ", $self->base64urlsafe( $auth ));
+	&$log("salt  : ", $self->base64urlsafe( $salt ));
 
 	#-------------------------------------------------------------------
 	# Original message
