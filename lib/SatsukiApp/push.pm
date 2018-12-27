@@ -257,6 +257,9 @@ sub send {
 			return \@buf;
 		}
 
+		&$log("");
+		&$log("Message: $msg");
+
 		# body header / N is 4byte network byte order (big eddian)
 		$body  = $salt . pack('N', 4096) . pack('C', length($mpub)) . $mpub;
 
